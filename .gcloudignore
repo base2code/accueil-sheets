@@ -1,3 +1,4 @@
 setup
 .idea
 credentials.json
+deploy-function.sh
