@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
-	"github.com/sendgrid/sendgrid-go"
-	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
@@ -14,6 +12,7 @@ import (
 	"google.golang.org/api/sheets/v4"
 	"log"
 	"net/http"
+	"net/smtp"
 	"os"
 	"time"
 )
@@ -237,21 +236,22 @@ func create() string {
 	publicLink := fmt.Sprintf("https://docs.google.com/spreadsheets/d/%s/edit?usp=sharing", resp.SpreadsheetId)
 	fmt.Printf("Created public link: %s", publicLink)
 
-	// Sending email using Sendgrid
-	from := mail.NewEmail("Accueil Bot", os.Getenv("EMAIL_SENDER"))
-	subject := "Accueilliste " + getLocalizedMonthName(int(month)) + " " + fmt.Sprintf("%d", year)
-	to := mail.NewEmail(os.Getenv("EMAIL_RECIPIENT"), os.Getenv("EMAIL_RECIPIENT"))
-	plainTextContent := "Hi,\n" +
-		"anbei der Link für die Accueilliste für den nächsten Monat: \n\n" +
-		publicLink + "\n\n" +
-		"Viele Grüße"
-	message := mail.NewSingleEmail(from, subject, to, plainTextContent, "")
-	emailClient := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
-	response, err := emailClient.Send(message)
+	auth := smtp.PlainAuth("", os.Getenv("EMAIL_SENDER"), os.Getenv("EMAIL_SENDER_PASS"), "smtp.gmail.com")
+
+	// Here we do it all: connect to our server, set up a message and send it
+
+	to := []string{os.Getenv("EMAIL_RECIPIENT")}
+
+	msg := []byte("To: " + os.Getenv("EMAIL_RECIPIENT") + "\r\n" +
+		"Subject: Accueil\r\n" +
+		"\r\n" +
+		"Hier ist der Link für den nächsten Monat\r\n\n" + publicLink)
+
+	err = smtp.SendMail("smtp.gmail.com:587", auth, os.Getenv("EMAIL_SENDER"), to, msg)
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	} else {
-		fmt.Printf("Email sent: %d", response.StatusCode)
+		fmt.Println("Email sent!")
 	}
 
 	return publicLink
